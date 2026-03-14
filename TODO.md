@@ -7,3 +7,5 @@
  - [] AI Access to console and files?
 [] Better DNS Management?
  - [] Make DNS work with Cloudflare
+[] Spark Analyzer for Minecraft Templates
+[] EULA Agreement pop up for Minecraft Templates
