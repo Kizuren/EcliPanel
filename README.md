@@ -2,8 +2,13 @@
   <img src="./eclipanel.png" alt="EcliPanel" width="640" />
 </p>
 EcliPanel v3 is a complete rewrite of the original EcliPanel v1, which itself was built on top of the Jexactyl panel.
-The goal of this iteration is to provide a fully in‑house backend and modernized frontend while keeping the codebase source‑available under a restrictive license..
+
+The goal of this iteration is to provide a fully in‑house backend and modernized frontend while keeping the codebase open source for non commercial use.
+
+
 ⚠️ This is still in-dev project bugs might happen, tho it was tested and should be save to use in production!
+
+
 
 > ⚠️ **Open Source (Non‑Commercial Only)**  
 > This project is open source under a **non‑commercial license**.  

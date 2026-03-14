@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_ENDPOINTS } from "@/lib/panel-config";
+import { COUNTRIES } from "@/lib/countries";
 import { apiFetch } from "@/lib/api-client";
 import { AlertTriangle, Info } from "lucide-react";
 
@@ -13,8 +14,13 @@ export default function RegisterPage() {
     email: "",
     password: "",
     address: "",
-    middleName: "",
     address2: "",
+    billingCompany: "",
+    billingCity: "",
+    billingState: "",
+    billingZip: "",
+    billingCountry: "",
+    middleName: "",
     phone: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -132,11 +138,64 @@ export default function RegisterPage() {
             <input
               name="address"
               type="text"
-              placeholder="Address"
+              placeholder="Street Address"
               value={form.address}
               onChange={handleChange}
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
+            <input
+              name="address2"
+              type="text"
+              placeholder="Address Line 2 (optional)"
+              value={form.address2}
+              onChange={handleChange}
+              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <input
+              name="billingCompany"
+              type="text"
+              placeholder="Company (optional)"
+              value={form.billingCompany}
+              onChange={handleChange}
+              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <input
+              name="billingCity"
+              type="text"
+              placeholder="City"
+              value={form.billingCity}
+              onChange={handleChange}
+              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <input
+              name="billingState"
+              type="text"
+              placeholder="State / Province"
+              value={form.billingState}
+              onChange={handleChange}
+              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <input
+              name="billingZip"
+              type="text"
+              placeholder="ZIP / Postal Code"
+              value={form.billingZip}
+              onChange={handleChange}
+              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <select
+              name="billingCountry"
+              value={form.billingCountry}
+              onChange={handleChange}
+              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+            >
+              <option value="">Country</option>
+              {COUNTRIES.map((country) => (
+                <option key={country.code} value={country.name}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
             <input
               name="phone"
               type="tel"

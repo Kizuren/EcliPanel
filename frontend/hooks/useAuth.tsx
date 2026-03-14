@@ -29,6 +29,7 @@ interface User {
   studentVerified?: boolean;
   passkeyCount?: number;
   avatarUrl?: string;
+  euIdVerificationDisabled?: boolean;
   settings?: Record<string, any>;
 }
 

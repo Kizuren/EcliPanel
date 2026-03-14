@@ -4,6 +4,15 @@ import { PanelHeader } from "@/components/panel/header"
 import { SectionHeader } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/useAuth"
 import { useState, useEffect } from "react"
 import { apiFetch } from "@/lib/api-client"
@@ -29,16 +38,29 @@ const GITHUB_STUDENT_ENABLED = false;
 // once gods of github kingdom respond to our pleas.
 
 // helper to derive step status from backend record
-function computeSteps(record: any | null, passkeyCount: number, emailVerified: boolean, studentVerified: boolean, portalType?: string) {
+function computeSteps(record: any | null, passkeyCount: number, emailVerified: boolean, studentVerified: boolean, portalType?: string, euIdDisabled?: boolean) {
   const base = [
     { id: 1, title: "Email Verification", description: emailVerified ? "Your email has been verified" : "Verify your email address to continue", icon: FileText },
     { id: 2, title: "Security Verification", description: "Register a passkey or enable two-factor authentication", icon: KeyRound },
-    { id: 3, title: "Identity Document", description: "Upload a government-issued ID", icon: Upload },
-    { id: 4, title: "Selfie Verification", description: "Take a photo to match your ID", icon: Camera },
+    {
+      id: 3,
+      title: "Identity Document",
+      description: euIdDisabled
+        ? "Not applicable for EU residents"
+        : "Upload a government-issued ID",
+      icon: Upload,
+    },
+    {
+      id: 4,
+      title: "Selfie Verification",
+      description: euIdDisabled
+        ? "Not applicable for EU residents"
+        : "Take a photo to match your ID",
+      icon: Camera,
+    },
     { id: 5, title: "Student Verification", description: studentVerified ? "Student status confirmed" : "Connect GitHub to verify educational status", icon: User },
   ] as any[];
 
-  // If the user already has the educational portal applied, hide the student verification step
   let stepsBase = base;
   if (portalType === 'educational') {
     stepsBase = base.filter((s) => s.id !== 5);
@@ -56,6 +78,7 @@ function computeSteps(record: any | null, passkeyCount: number, emailVerified: b
     }
     if (idx === 2) {
       if (!emailVerified) return { ...s, status: "locked" };
+      if (euIdDisabled) return { ...s, status: "notApplicable" };
       if (completed) return { ...s, status: "completed" };
       if (pending) return { ...s, status: "pending" };
       if (failed) return { ...s, status: "failed" };
@@ -63,6 +86,7 @@ function computeSteps(record: any | null, passkeyCount: number, emailVerified: b
     }
     if (idx === 3) {
       if (!emailVerified) return { ...s, status: "locked" };
+      if (euIdDisabled) return { ...s, status: "notApplicable" };
       if (completed) return { ...s, status: "completed" };
       if (pending) return { ...s, status: "pending" };
       if (failed) return { ...s, status: "failed" };
@@ -84,6 +108,8 @@ export default function IdentityPage() {
   const [idDocFile, setIdDocFile] = useState<File | null>(null)
   const [selfieFile, setSelfieFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [euIdDialogOpen, setEuIdDialogOpen] = useState(false)
+  const euIdDisabled = !!user?.euIdVerificationDisabled
 
   useEffect(() => {
     if (user) {
@@ -96,18 +122,38 @@ export default function IdentityPage() {
     }
   }, [user])
 
-  const steps = computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType)
+  useEffect(() => {
+    if (euIdDisabled) {
+      setEuIdDialogOpen(true);
+    }
+  }, [euIdDisabled]);
+
+  const steps = computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType, euIdDisabled)
 
   return (
     <>
       <PanelHeader title="Identity Verification" description="Verify your identity for enhanced account features" />
+      <Dialog open={euIdDialogOpen} onOpenChange={setEuIdDialogOpen}>
+        <DialogContent className="border-border bg-card">
+          <DialogHeader>
+            <DialogTitle>ID Verification Unavailable</DialogTitle>
+            <DialogDescription>
+              ID verification is currently disabled for residents of the European Union due to local regulations.
+              If you believe you should still have access, please contact support.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setEuIdDialogOpen(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-6 p-6">
           {/* Status Banner */}
           {(() => {
             const s = computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType);
             const requiredSteps = s.slice(0, 4);
-            const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed').length;
+            const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed' || x.status === 'notApplicable').length;
             const allRequired = doneRequired === 4;
             const borderColor = allRequired ? 'border-success/30' : 'border-warning/30';
             const bgColor = allRequired ? 'bg-success/5' : 'bg-warning/5';
@@ -147,6 +193,7 @@ export default function IdentityPage() {
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
+                    disabled={euIdDisabled}
                     onChange={(e) => setIdDocFile(e.target.files?.[0] ?? null)}
                     className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
                   />
@@ -158,13 +205,14 @@ export default function IdentityPage() {
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
+                    disabled={euIdDisabled}
                     onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
                     className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
                   />
                   {selfieFile && <p className="text-xs text-success">Selected: {selfieFile.name}</p>}
                 </div>
                 <button
-                  disabled={submitting || !idDocFile || !selfieFile}
+                  disabled={euIdDisabled || submitting || !idDocFile || !selfieFile}
                   onClick={async () => {
                     if (!idDocFile || !selfieFile) { alert('Please select both files'); return; }
                     setSubmitting(true);
@@ -193,7 +241,7 @@ export default function IdentityPage() {
           <div className="rounded-xl border border-border bg-card p-6">
             <SectionHeader title="Verification Steps" description="Complete each step to verify your identity" />
             <div className="mt-6 flex flex-col gap-4">
-          {computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType).map((step, idx) => (
+          {computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType, euIdDisabled).map((step, idx) => (
                 <div
                   key={step.id}
                   className={`flex items-center gap-4 rounded-lg border p-4 transition-all ${
@@ -203,9 +251,11 @@ export default function IdentityPage() {
                         ? "border-primary/30 bg-primary/5"
                         : step.status === "available"
                           ? "border-border bg-card"
-                          : step.status === "failed"
-                            ? "border-destructive/30 bg-destructive/5"
-                            : "border-border bg-secondary/20 opacity-60"
+                          : step.status === "notApplicable"
+                            ? "border-muted/30 bg-muted/10"
+                            : step.status === "failed"
+                              ? "border-destructive/30 bg-destructive/5"
+                              : "border-border bg-secondary/20 opacity-60"
                   }`}
                 >
                   {/* Step Number */}
@@ -215,7 +265,9 @@ export default function IdentityPage() {
                         ? "bg-success/20 text-success"
                         : step.status === "pending"
                           ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
+                          : step.status === "notApplicable"
+                            ? "bg-muted/20 text-muted-foreground"
+                            : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {step.status === "completed" ? (
@@ -240,6 +292,11 @@ export default function IdentityPage() {
                   {step.status === "pending" && (
                     <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                       Pending
+                    </Badge>
+                  )}
+                  {step.status === "notApplicable" && (
+                    <Badge variant="outline" className="border-muted/30 bg-muted/10 text-muted-foreground">
+                      Not Applicable
                     </Badge>
                   )}
                   {/* student verification button (hidden) */}
@@ -317,7 +374,17 @@ export default function IdentityPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">ID Document</p>
                   <p className="text-sm text-muted-foreground">
-                    {status?.status === 'verified' ? 'Verified' : status?.status === 'pending' ? 'Under Review' : status?.status === 'failed' ? 'Failed — please resubmit' : 'Not yet uploaded'}
+                    {euIdDisabled
+                      ? status?.status === 'verified'
+                        ? 'Verified | Not Applicable for EU residents'
+                        : 'Not Applicable for EU residents'
+                      : status?.status === 'verified'
+                        ? 'Verified'
+                        : status?.status === 'pending'
+                          ? 'Under Review'
+                          : status?.status === 'failed'
+                            ? 'Failed — please resubmit'
+                            : 'Not yet uploaded'}
                   </p>
                 </div>
               </div>

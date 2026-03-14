@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { IDVerification } from '../models/idVerification.entity';
 import { authenticate } from '../middleware/auth';
 import { User } from '../models/user.entity';
+import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
 import path from 'path';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
@@ -10,6 +11,11 @@ import { t } from 'elysia';
 export async function idVerificationRoutes(app: any, prefix = '') {
   app.post(prefix + '/id-verification', async (ctx: any) => {
     const user = ctx.user as User;
+    if (isEUIdVerificationDisabledForCountry(user?.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'ID verification is not available for EU residents' };
+    }
+
     const repo = AppDataSource.getRepository(IDVerification);
 
     const uploadDir = path.join(process.cwd(), 'uploads', 'id-docs');

@@ -28,6 +28,8 @@ export RP_ID=${RP_ID:-ecli.app}
 export GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-grrr}
 export GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-grrr}
 
+export EU_ID_DISABLED=${EU_ID_DISABLED:-true}
+
 echo "--- environment loaded ---"
 
 if command -v bun >/dev/null 2>&1; then

@@ -2,6 +2,7 @@ import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { comparePassword } from '../utils/password';
+import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
@@ -919,6 +920,7 @@ export async function authRoutes(app: any, prefix = '') {
         limits: (user as any).limits || (user as any).educationLimits || null,
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,
+        euIdVerificationDisabled: isEUIdVerificationDisabledForCountry(user.billingCountry),
       },
     };
   }, { beforeHandle: authenticate,

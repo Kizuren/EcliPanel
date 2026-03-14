@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PORTALS, API_ENDPOINTS } from "@/lib/panel-config"
+import { COUNTRIES } from "@/lib/countries"
 import { useAuth } from "@/hooks/useAuth"
 import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from "@/lib/editor-settings"
 import {
@@ -856,12 +857,18 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-foreground">Country</label>
-                    <input
-                      type="text"
+                    <select
                       value={form.billingCountry}
                       onChange={(e) => setForm({ ...form, billingCountry: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
+                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
+                    >
+                      <option value="">Select country</option>
+                      {COUNTRIES.map((country) => (
+                        <option key={country.code} value={country.name}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-foreground">Phone Number</label>

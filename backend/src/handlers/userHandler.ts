@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword } from '../utils/password';
+import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { sendMail } from '../services/mailService';
@@ -45,6 +46,7 @@ const userSchema = t.Object({
   studentVerifiedAt: t.Optional(t.String()),
   educationLimits: t.Optional(t.Any()),
   idVerified: t.Boolean(),
+  euIdVerificationDisabled: t.Optional(t.Boolean()),
   twoFactorEnabled: t.Boolean(),
   suspended: t.Boolean(),
   deletionRequested: t.Boolean(),
@@ -54,6 +56,25 @@ const userSchema = t.Object({
 
 function safeUser(user: User): any {
   const { passwordHash, sessions, ...safe } = user as any;
+  safe.euIdVerificationDisabled = isEUIdVerificationDisabledForCountry(user.billingCountry);
+
+  if (safe.fraudDetectedAt instanceof Date) {
+    safe.fraudDetectedAt = safe.fraudDetectedAt.toISOString();
+  }
+  if (safe.studentVerifiedAt instanceof Date) {
+    safe.studentVerifiedAt = safe.studentVerifiedAt.toISOString();
+  }
+
+  if (safe.fraudDetectedAt === null) {
+    delete safe.fraudDetectedAt;
+  }
+  if (safe.studentVerifiedAt === null) {
+    delete safe.studentVerifiedAt;
+  }
+  if (safe.nodeId === null) {
+    delete safe.nodeId;
+  }
+
   return safe;
 }
 
