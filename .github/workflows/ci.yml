@@ -1,0 +1,52 @@
+name: CI - Build Backend & Frontend
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend:
+    name: Backend (Bun)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 'latest'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          bun install
+
+      - name: Build backend (typecheck)
+        working-directory: backend
+        run: |
+          bun run build
+
+  frontend:
+    name: Frontend (pnpm + Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        run: corepack enable && corepack prepare pnpm@latest --activate
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build

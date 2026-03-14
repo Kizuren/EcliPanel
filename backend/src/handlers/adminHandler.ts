@@ -342,6 +342,9 @@ export async function adminRoutes(app: any, prefix = '') {
     if (status === 'verified') {
       rec.verifiedAt = new Date();
       await userRepo.update({ id: rec.userId }, { idVerified: true });
+    } else {
+      rec.verifiedAt = null;
+      await userRepo.update({ id: rec.userId }, { idVerified: false });
     }
     await verRepo.save(rec);
     return { success: true, rec };

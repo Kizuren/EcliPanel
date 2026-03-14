@@ -32,3 +32,20 @@ export function decrypt(enc: string): string {
   decrypted += decipher.final('utf8');
   return decrypted;
 }
+
+export function encryptBuffer(data: Buffer): Buffer {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(algorithm, Buffer.from(key), iv);
+  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, encrypted]);
+}
+
+export function decryptBuffer(data: Buffer): Buffer {
+  const iv = data.slice(0, 12);
+  const tag = data.slice(12, 28);
+  const ciphertext = data.slice(28);
+  const decipher = crypto.createDecipheriv(algorithm, Buffer.from(key), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}

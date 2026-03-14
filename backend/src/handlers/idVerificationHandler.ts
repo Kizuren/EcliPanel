@@ -3,6 +3,7 @@ import { IDVerification } from '../models/idVerification.entity';
 import { authenticate } from '../middleware/auth';
 import { User } from '../models/user.entity';
 import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
+import { encryptBuffer } from '../utils/crypto';
 import path from 'path';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
@@ -25,17 +26,28 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     let selfieUrl: string | undefined;
 
     try {
-      const parts = ctx.parts();
-      for await (const part of parts) {
-        if (part.type === 'file') {
-          const safeExt = path.extname(part.filename || '').replace(/[^a-zA-Z0-9.]/g, '').slice(0, 6) || '.bin';
-          const filename = `${user.id}-${part.fieldname}-${Date.now()}${safeExt}`;
-          const filepath = path.join(uploadDir, filename);
-          await pipeline(part.file, fs.createWriteStream(filepath));
-          const url = `/uploads/id-docs/${filename}`;
-          if (part.fieldname === 'idDocument') idDocumentUrl = url;
-          else if (part.fieldname === 'selfie') selfieUrl = url;
-        }
+      const { idDocument, selfie } = (ctx.body || {}) as any;
+      const files = [
+        { field: 'idDocument', item: Array.isArray(idDocument) ? idDocument[0] : idDocument },
+        { field: 'selfie', item: Array.isArray(selfie) ? selfie[0] : selfie },
+      ];
+
+      for (const entry of files) {
+        const uploadFile = entry.item;
+        if (!uploadFile) continue;
+
+        const safeExt = path.extname(uploadFile.name || uploadFile.filename || '').replace(/[^a-zA-Z0-9.]/g, '').slice(0, 6) || '.bin';
+        const filename = `${user.id}-${entry.field}-${Date.now()}${safeExt}`;
+        const filepath = path.join(uploadDir, filename);
+
+        const ab = await uploadFile.arrayBuffer();
+        const buffer = Buffer.from(ab);
+        const encrypted = encryptBuffer(buffer);
+        fs.writeFileSync(filepath, encrypted);
+
+        const url = `/uploads/id-docs/${filename}`;
+        if (entry.field === 'idDocument') idDocumentUrl = url;
+        if (entry.field === 'selfie') selfieUrl = url;
       }
     } catch (err: any) {
       ctx.log.error({ err: err?.message || err }, 'ID verification file upload failed');
@@ -58,6 +70,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     record = await repo.save(record);
     return { success: true, record };
   }, {beforeHandle: authenticate,
+    body: t.Any(),
     response: { 200: t.Object({ success: t.Boolean(), record: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'Submit ID verification', description: 'User submits scanned ID and selfie for manual review.', tags: ['Identity'] }
   });

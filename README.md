@@ -48,6 +48,7 @@ You may use wings-go (pterodactyl stock) but it is untested and some features wi
    # the old Node build path still works if Bun isn't installed
    bun install      # or `pnpm install`/`npm install` if you prefer
    bun run gen:jwt-secret # generate JWT Secret (set in .env as JWT_SECRET=generated-string)
+   bun run gen:jwt-secret # generate Encryption Key just like JWT Secret (set in .env as NODE_ENCRYPTION_KEY=generated-string)
    nano .env        # edit .env (see .env.example)
    # for development you can simply run:
    bun src/index.ts
@@ -151,3 +152,5 @@ This avoids any attempt to reach an absent Wings endpoint when the system is fre
 Happy exploring!
 >Side note: 
 > [This project](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) took part in [flavortown](https://flavortown.hack.club/?ref=eclipsesystems)!
+> I do not get paid for developing this and entire hosting is not profitable enough to cover development costs, 
+> if you really liked panel atleast star the repo or go order something from us https://ecli.app/

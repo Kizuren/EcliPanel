@@ -6,11 +6,12 @@ import cors from '@elysiajs/cors';
 import { helmet } from 'elysia-helmet';
 import jsonwebtoken from 'jsonwebtoken';
 import { registerRoutes } from './routes/index';
-import { setupMiddleware } from './middleware';
+import { setupMiddleware, authenticate } from './middleware';
 import { setupConfig } from './config';
 import { AppDataSource } from './config/typeorm';
 import path from 'path';
 import { promises as fsp } from 'fs';
+import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysiajs/openapi';
 
 // Migrated from Fastify hence why code for Elysia could be a mess, 
@@ -217,6 +218,8 @@ const app = new Elysia()
   .use(cors({
     origin: (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') ? true : (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()),
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())
   .use(jwt({ secret: process.env.JWT_SECRET || 'changeme' }));
@@ -278,6 +281,21 @@ app.onRequest((ctx: any) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+  try {
+    const authHeader = ctx.request?.headers?.get('authorization') || '';
+    const qToken = (ctx.query as any)?.token as string | undefined;
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : qToken;
+    if (rawToken) {
+      try {
+        const decoded = (app as any).jwt.verify(rawToken) as any;
+        ctx.user = decoded;
+      } catch (e) {
+        // skip
+      }
+    }
+  } catch (e) {
+    // skip
+  }
 });
 
 export async function initApp() {
@@ -309,27 +327,20 @@ app.get('/health', async (ctx: any) => {
 });
 
 app.get('/uploads/id-docs/*', async (ctx: any) => {
-  let userId: number | null = null;
-
-  const authHeader = ctx.request.headers.get('authorization') || '';
-  const qToken = (ctx.query as any)?.token as string | undefined;
-  const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : qToken;
-
-  if (!rawToken) return new Response(JSON.stringify({ error: 'Missing token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-
-  try {
-    const decoded = app.jwt.verify(rawToken) as { userId: number };
-    userId = decoded?.userId;
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  const adminRoles = ['admin', 'rootAdmin', '*'];
+  const user = ctx.user;
+  const apiKey = ctx.apiKey;
+  if (!user && !apiKey) {
+    return new Response(JSON.stringify({ error: 'Missing Authorization token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
-
-  if (!userId) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-
-  const userRepo = AppDataSource.getRepository(require('./models/user.entity').User);
-  const user = await userRepo.findOneBy({ id: userId });
-  if (!user || !['admin', 'rootAdmin', '*'].includes(user.role ?? '')) {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  if (apiKey) {
+    if (apiKey.type !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
+  } else {
+    if (!adminRoles.includes(user.role ?? '')) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
   }
 
   const relPath = (ctx.params as any)['*'];
@@ -341,7 +352,12 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
     '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf',
   };
   try {
-    const buf = await fsp.readFile(filepath);
+    let buf = await fsp.readFile(filepath);
+    try {
+      buf = decryptBuffer(buf);
+    } catch {
+      // skip
+    }
     return new Response(buf, {
       status: 200,
       headers: {
@@ -353,6 +369,7 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
     return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
   }
 }, {
+  beforeHandle: authenticate,
   detail: { hide: true }
 });
 
